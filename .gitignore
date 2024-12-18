@@ -1,2 +1,8 @@
 # Python venv
 venv/
+
+#Local settings file
+local.settings.json
+
+# Paremeters file
+infrastructure/parameters.json
