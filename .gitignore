@@ -6,3 +6,16 @@ local.settings.json
 
 # Paremeters file
 infrastructure/parameters.json
+
+# Test file
+input_test.csv
+
+#
+.vscode
+
+# Python-related ignores
+*.pyc
+*.pyo
+*.pyd
+__pycache__/
+*.swp

@@ -14,14 +14,18 @@ param storageSubnetId string
 param functionAppSubnetId string
 
 @description('Region for the resources')
-param location string = resourceGroup().location
+param location string
 
 @description('Name of the storage private endpoint')
 param storagePrivateEndpointName string
 
+@description('Name of the function app private endpoint')
+param functionAppPrivateEndpointName string
+
+
 
 // Storage Account
-resource storageAccount 'Microsoft.Storage/storageAccounts@2022-09-01' = {
+resource storageAccount 'Microsoft.Storage/storageAccounts@2023-05-01' = {
   name: storageAccountName
   location: location
   sku: {
@@ -34,15 +38,32 @@ resource storageAccount 'Microsoft.Storage/storageAccounts@2022-09-01' = {
       bypass: 'AzureServices'
       virtualNetworkRules: [
         {
-          id: storageSubnetId
+          id: storageSubnetId // Allow access from this specific subnet
         }
       ]
     }
   }
 }
 
+// Blob Service Resource
+resource blobService 'Microsoft.Storage/storageAccounts/blobServices@2023-05-01' = {
+  name: 'default'
+  parent: storageAccount
+}
+
+// Blob Container Resource
+resource blobContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-05-01' = {
+  name: 'my-deployment-container'
+  parent: blobService
+  properties: {
+    publicAccess: 'None'
+  }
+}
+
+
+
 // Storage Private Endpoint
-resource storagePrivateEndpoint 'Microsoft.Network/privateEndpoints@2021-05-01' = {
+resource storagePrivateEndpoint 'Microsoft.Network/privateEndpoints@2024-05-01' = {
   name: storagePrivateEndpointName
   location: location
   properties: {
@@ -63,7 +84,7 @@ resource storagePrivateEndpoint 'Microsoft.Network/privateEndpoints@2021-05-01' 
 
 
 // App Service Plan
-resource appServicePlan 'Microsoft.Web/serverfarms@2022-09-01' = {
+resource appServicePlan 'Microsoft.Web/serverfarms@2024-04-01' = {
   name: appServicePlanName
   location: location
   sku: {
@@ -71,32 +92,82 @@ resource appServicePlan 'Microsoft.Web/serverfarms@2022-09-01' = {
     tier: 'FlexConsumption'
   }
   properties: {
-    reserved: true
+    reserved: true // Specifies Linux OS
   }
 }
 
+
 // Function App
-resource functionApp 'Microsoft.Web/sites@2022-09-01' = {
+resource functionApp 'Microsoft.Web/sites@2024-04-01' = {
   name: functionAppName
   location: location
+  kind: 'functionapp,linux'
+  identity: {
+    type: 'SystemAssigned'
+  }
   properties: {
     serverFarmId: appServicePlan.id
     siteConfig: {
       appSettings: [
         {
-          name: 'WEBSITE_RUN_FROM_PACKAGE'
+          name: 'AzureWebJobsStorage'
+          // This requires Storage Blob Data Contributor to be set later
+          value: 'DefaultEndpointsProtocol=https;AccountName=${storageAccount.name};EndpointSuffix=core.windows.net'
+        }
+        {
+          name: 'WEBSITE_RUN_FROM_PACKAGE' // Run function app from zip file
           value: '1'
         }
         {
-          name: 'AzureWebJobsStorage'
-          value: storageAccount.properties.primaryEndpoints.blob
+          name: 'CONTAINER_NAME'
+          value: 'files-to-process' // Name of the blob container
         }
       ]
-      vnetRouteAllEnabled: true
+
     }
     virtualNetworkSubnetId: functionAppSubnetId
+    functionAppConfig: {
+      runtime: {
+        name: 'python' // Runtime language
+        version: '3.11' // Runtime version
+      }
+      deployment: {
+        storage: {
+          type: 'blobContainer' // Source deployment from a blob container
+          value: '${storageAccount.properties.primaryEndpoints.blob}my-deployment-container'
+          authentication: {
+            type: 'SystemAssignedIdentity' // Managed identity authentication
+          }
+        }
+      }
+      scaleAndConcurrency: {
+        instanceMemoryMB: 2048
+        maximumInstanceCount: 100
+      }
+    }
   }
 }
+
+// Function App Private Endpoint
+resource functionAppPrivateEndpoint 'Microsoft.Network/privateEndpoints@2024-05-01' = {
+  name: functionAppPrivateEndpointName
+  location: location
+  properties: {
+    subnet: {
+      id: functionAppSubnetId
+    }
+    privateLinkServiceConnections: [
+      {
+        name: '${functionAppName}-connection'
+        properties: {
+          privateLinkServiceId: functionApp.id
+          groupIds: ['sites']
+        }
+      }
+    ]
+  }
+}
+
 
 // Outputs
 output storageAccountId string = storageAccount.id
