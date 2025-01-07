@@ -23,6 +23,65 @@ param storagePrivateEndpointName string
 param functionAppPrivateEndpointName string
 
 
+//NEWLY DEFINED PARAMETERS
+param functionAppPlanSku string 
+var isReserved = true
+
+// App Service Plan
+resource appServicePlan 'Microsoft.Web/serverfarms@2021-01-01' = {
+  name: appServicePlanName
+  location: location
+  sku: {
+    name: functionAppPlanSku
+    tier: 'ElasticPremium'
+    size: functionAppPlanSku
+    family: 'EP'
+  }
+  kind: 'elastic'
+  properties: {
+    maximumElasticWorkerCount: 20
+    reserved: isReserved // Specifies Linux OS
+  }
+}
+
+
+// Function App
+resource functionApp 'Microsoft.Web/sites@2024-04-01' = {
+  name: functionAppName
+  location: location
+  kind: (isReserved ? 'functionapp,linux' : 'functionapp')
+  identity: {
+    type: 'SystemAssigned'
+  }
+  properties: {
+    httpsOnly: true
+    serverFarmId: appServicePlan.id
+    reserved: isReserved
+    virtualNetworkSubnetId: functionAppSubnetId
+    siteConfig: {
+      vnetRouteAllEnabled: true
+      functionsRuntimeScaleMonitoringEnabled: true
+      linuxFxVersion: (isReserved ? 'python|3.9' : 'python|3.9')
+      appSettings: [
+        {
+          name: 'AzureWebJobsStorage'
+          // This requires Storage Blob Data Contributor to be set later
+          value: 'DefaultEndpointsProtocol=https;AccountName=${storageAccount.name};AccountKey=${listKeys(storageAccount.id, '2021-09-01').keys[0].value}'
+        }
+        {
+          name: 'WEBSITE_CONTENTAZUREFILECONNECTIONSTRING'
+          value: 'DefaultEndpointsProtocol=https;AccountName=${storageAccount.name};AccountKey=${listKeys(storageAccount.id, '2021-09-01').keys[0].value}'
+        }
+        {
+          name: 'CONTAINER_NAME'
+          value: 'files-to-process' // Name of the blob container
+        }
+      ]
+
+    }
+  }
+}
+
 
 // Storage Account
 resource storageAccount 'Microsoft.Storage/storageAccounts@2023-05-01' = {
@@ -83,70 +142,7 @@ resource storagePrivateEndpoint 'Microsoft.Network/privateEndpoints@2024-05-01' 
 }
 
 
-// App Service Plan
-resource appServicePlan 'Microsoft.Web/serverfarms@2024-04-01' = {
-  name: appServicePlanName
-  location: location
-  sku: {
-    name: 'FC1'
-    tier: 'FlexConsumption'
-  }
-  properties: {
-    reserved: true // Specifies Linux OS
-  }
-}
 
-
-// Function App
-resource functionApp 'Microsoft.Web/sites@2024-04-01' = {
-  name: functionAppName
-  location: location
-  kind: 'functionapp,linux'
-  identity: {
-    type: 'SystemAssigned'
-  }
-  properties: {
-    serverFarmId: appServicePlan.id
-    siteConfig: {
-      appSettings: [
-        {
-          name: 'AzureWebJobsStorage'
-          // This requires Storage Blob Data Contributor to be set later
-          value: 'DefaultEndpointsProtocol=https;AccountName=${storageAccount.name};EndpointSuffix=core.windows.net'
-        }
-        {
-          name: 'WEBSITE_RUN_FROM_PACKAGE' // Run function app from zip file
-          value: '1'
-        }
-        {
-          name: 'CONTAINER_NAME'
-          value: 'files-to-process' // Name of the blob container
-        }
-      ]
-
-    }
-    virtualNetworkSubnetId: functionAppSubnetId
-    functionAppConfig: {
-      runtime: {
-        name: 'python' // Runtime language
-        version: '3.11' // Runtime version
-      }
-      deployment: {
-        storage: {
-          type: 'blobContainer' // Source deployment from a blob container
-          value: '${storageAccount.properties.primaryEndpoints.blob}my-deployment-container'
-          authentication: {
-            type: 'SystemAssignedIdentity' // Managed identity authentication
-          }
-        }
-      }
-      scaleAndConcurrency: {
-        instanceMemoryMB: 2048
-        maximumInstanceCount: 100
-      }
-    }
-  }
-}
 
 // Function App Private Endpoint
 resource functionAppPrivateEndpoint 'Microsoft.Network/privateEndpoints@2024-05-01' = {
