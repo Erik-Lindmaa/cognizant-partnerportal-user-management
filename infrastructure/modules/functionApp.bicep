@@ -30,6 +30,10 @@ resource functionApp 'Microsoft.Web/sites@2023-12-01' = {
       minTlsVersion: '1.3'
       appSettings: [
         {
+          name: 'FUNCTIONS_EXTENSION_VERSION '
+          value: '~4'
+        }
+        {
           name: 'AzureWebJobsStorage__accountName'
           value: storageAccountName
         }
