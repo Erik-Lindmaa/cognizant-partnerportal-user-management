@@ -81,7 +81,7 @@ module functionApp 'modules/functionApp.bicep' = {
     containerName: 'app-package${suffix}'
     functionAppRuntimeVersion: functionAppRuntimeVersion
     functionAppPrivateEndpointName: 'pe-func${suffix}'
-    functionAppSubnetId: '/subscriptions/3efbebad-243d-4156-ae81-4203f7fdcbe2/resourceGroups/rg-spoke-AppInte-nonprod-001-nonprod-003-az03/providers/Microsoft.Network/virtualNetworks/vnet-AppInte-nonprod-001-003-az03/subnets/snet-0102'
+    functionAppSubnetId: '/subscriptions/3efbebad-243d-4156-ae81-4203f7fdcbe2/resourceGroups/rg-spoke-AppInte-nonprod-001-nonprod-003-az03/providers/Microsoft.Network/virtualNetworks/vnet-AppInte-nonprod-001-003-az03/subnets/snet-0101'
   }
 }
 

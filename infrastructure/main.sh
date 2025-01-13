@@ -10,4 +10,5 @@ TEMPLATE_FILE='main.bicep'
 #az group create --name "$RESOURCE_GROUP" --location "$location" --tags Owner="$owner" CostCenter="$costCenter"
 
 # Deploy
+
 az deployment group create --resource-group "$RESOURCE_GROUP" --template-file "$TEMPLATE_FILE" --parameters "@$PARAM_FILE"
