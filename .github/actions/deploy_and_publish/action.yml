@@ -1,0 +1,50 @@
+name: "Deploy and Publish"
+description: "An action to deploy Azure resources and publish function code"
+
+inputs:
+  azure_client_id:
+    description: "Azure Client ID"
+    required: true
+  azure_tenant_id:
+    description: "Azure Tenant ID"
+    required: true
+  azure_subscription_id:
+    description: "Azure Subscription ID"
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+
+    - name: Sign in to Azure
+      uses: azure/login@v2
+      with:
+        client-id: ${{ inputs.azure_client_id }}
+        tenant-id: ${{ inputs.azure_tenant_id }}
+        subscription-id: ${{ inputs.azure_subscription_id }}
+    
+
+      # Set up Python version (ensure it matches your runtimeVersion specified in parameters.json)
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: "3.11"
+
+      # Install Python dependencies
+    - name: 'Install Python dependencies'
+      shell: bash
+      run: |
+        pushd './function_app'
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt --target=".python_packages/lib/site-packages"
+        popd
+
+    - run: chmod +x infrastructure/main.sh
+      shell: bash
+
+    - name: Deploying Resources
+      shell: bash
+      run: |
+        scripts/main.sh
+
+    # Add steps to deploy function code later

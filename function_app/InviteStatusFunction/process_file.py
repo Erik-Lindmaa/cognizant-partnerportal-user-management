@@ -7,9 +7,15 @@ from .utils import save_blob_to_container
 
 import os
 
-tenant_id = os.getenv("TENANT_ID")  
+tenant_id = os.getenv("TENANT_ID")
+if not tenant_id:
+    raise ValueError("TENANT_ID is not set in the environment variables")
 client_id = os.getenv("CLIENT_ID")
+if not client_id:
+    raise ValueError("CLIENT_ID is not set in the environment variables")
 client_secret = os.getenv("CLIENT_SECRET")
+if not client_secret:
+    raise ValueError("CLIENT_SECRET is not set in the environment variables")
 
 # MSAL client setup
 authority = f"https://login.microsoftonline.com/{tenant_id}"

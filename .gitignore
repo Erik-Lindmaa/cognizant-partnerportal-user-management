@@ -19,3 +19,8 @@ input_test.csv
 *.pyd
 __pycache__/
 *.swp
+
+# Add this line to preserve Python packages
+!.python_packages/
+!.python_packages/lib/
+!.python_packages/lib/site-packages/

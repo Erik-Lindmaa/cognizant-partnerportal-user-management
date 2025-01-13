@@ -1,0 +1,30 @@
+name: Deploy Cognizant Function App
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - func_template
+
+jobs:
+
+  # comment
+  
+  Function-Cognizant-Deploy:
+    runs-on: ubuntu-latest
+
+    environment: dev
+    
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Deploy and publish function app
+        uses: ./.github/actions/deploy_and_publish
+        with:
+          azure_client_id: ${{ vars.AZURE_CLIENT_ID }}
+          azure_subscription_id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+          azure_tenant_id: ${{ secrets.AZURE_TENANT_ID }}
+
+    
+
+
